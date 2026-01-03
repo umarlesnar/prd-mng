@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { Product } from '@/models/Product';
-import { generateSerialNumber } from '@/lib/serial-generator';
+import { generateBulkSerialNumbers } from '@/lib/serial-generator';
 import { logAudit } from '@/lib/audit-logger';
 
 async function postHandler(req: NextRequest) {
@@ -27,37 +27,35 @@ async function postHandler(req: NextRequest) {
     }
 
     const storeIdString = typeof storeId === 'string' ? storeId : String(storeId);
-    const serialNumbers = [];
-    const productsToCreate = [];
+    
+    // Generate serial numbers in bulk
+    const serialData = await generateBulkSerialNumbers(storeIdString, quantity);
+    const serialNumbers = serialData.map(data => data.serial_number);
 
-    for (let i = 0; i < quantity; i++) {
-      const serialData = await generateSerialNumber(storeIdString, product_model);
-      serialNumbers.push(serialData.serial_number);
-      
-      productsToCreate.push({
-        product_model,
-        category,
-        brand,
-        manufacturing_date: new Date(manufacturing_date),
-        base_warranty_months,
-        user_id: userId,
-        store_id: storeIdString,
-        ...serialData,
-      });
-    }
+    // Prepare bulk insert data
+    const productsToCreate = serialData.map(data => ({
+      product_model,
+      category,
+      brand,
+      manufacturing_date: new Date(manufacturing_date),
+      base_warranty_months,
+      user_id: userId,
+      store_id: storeIdString,
+      ...data,
+    }));
 
-    const products = await Product.insertMany(productsToCreate);
+    // Bulk insert products
+    const products = await Product.insertMany(productsToCreate, { ordered: false });
 
-    for (const product of products) {
-      await logAudit({
-        userId: userId,
-        storeId: storeIdString,
-        entity: 'products',
-        entityId: product._id,
-        action: 'create',
-        newValue: product,
-      });
-    }
+    // Single audit log for the batch
+    await logAudit({
+      userId: userId,
+      storeId: storeIdString,
+      entity: 'products',
+      entityId: null,
+      action: 'bulk_create',
+      newValue: { quantity, product_model, category, brand },
+    });
 
     return NextResponse.json({ products, serialNumbers, quantity }, { status: 201 });
   } catch (error: unknown) {

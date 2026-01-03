@@ -5,8 +5,8 @@ interface AuditLogData {
   userId?: string | Types.ObjectId;
   storeId?: string | Types.ObjectId;
   entity: string;
-  entityId: string | Types.ObjectId;
-  action: 'create' | 'update' | 'delete';
+  entityId: string | Types.ObjectId | null;
+  action: 'create' | 'update' | 'delete' | 'bulk_create';
   oldValue?: any;
   newValue?: any;
 }

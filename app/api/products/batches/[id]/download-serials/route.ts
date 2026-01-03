@@ -3,6 +3,7 @@ import { connectDB } from '@/lib/db';
 import { Batch } from '@/models/Batch';
 import { ProductItem } from '@/models/ProductItem';
 import { ProductTemplate } from '@/models/ProductTemplate';
+import { Store } from '@/models/Store';
 import { generateSerialNumbersPDF } from '@/lib/serial-numbers-pdf';
 
 async function getHandler(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -38,6 +39,9 @@ async function getHandler(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: 'No product items found in this batch' }, { status: 404 });
     }
 
+    // Fetch store to get logo
+    const store = await Store.findById(batch.store_id);
+
     // Generate PDF
     const pdfBuffer = await generateSerialNumbersPDF(serialNumbers, {
       brand: template.brand,
@@ -45,6 +49,8 @@ async function getHandler(req: NextRequest, { params }: { params: Promise<{ id: 
       category: template.category,
       manufacturing_date: batch.manufacturing_date.toISOString().split('T')[0],
       base_warranty_months: batch.warranty_period_months,
+      store_logo: store?.store_logo,
+      whatsapp_number: store?.contact_phone,
     });
 
     return new NextResponse(new Uint8Array(pdfBuffer), {

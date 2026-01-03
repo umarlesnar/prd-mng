@@ -36,6 +36,7 @@ function SettingsContent() {
   const [editingApiKey, setEditingApiKey] = useState<any>(null);
   const [editingStore, setEditingStore] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
   
   const [editApiKeyData, setEditApiKeyData] = useState({ status: 'Enabled' });
   
@@ -45,6 +46,7 @@ function SettingsContent() {
     contact_phone: '',
     serial_prefix: '',
     serial_suffix: '',
+    store_logo: '',
   });
 
   const [newStoreFormData, setNewStoreFormData] = useState({
@@ -63,7 +65,9 @@ function SettingsContent() {
         contact_phone: currentStore.contact_phone || '',
         serial_prefix: currentStore.serial_prefix || '',
         serial_suffix: currentStore.serial_suffix || '',
+        store_logo: currentStore.store_logo || '',
       });
+      setLogoPreview(currentStore.store_logo || null);
     }
   }, [currentStore]);
 
@@ -189,6 +193,19 @@ function SettingsContent() {
         showToast(error.message, 'error');
       }
     }, { isDangerous: true, confirmText: 'Delete', cancelText: 'Cancel' });
+  };
+
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = reader.result as string;
+        setLogoPreview(base64);
+        setStoreFormData({ ...storeFormData, store_logo: base64 });
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleStoreUpdate = async (e: React.FormEvent) => {
@@ -373,7 +390,9 @@ function SettingsContent() {
       contact_phone: store.contact_phone || '',
       serial_prefix: store.serial_prefix,
       serial_suffix: store.serial_suffix || '',
+      store_logo: store.store_logo || '',
     });
+    setLogoPreview(store.store_logo || null);
     setIsEditStoreModalOpen(true);
   };
 
@@ -826,6 +845,36 @@ function SettingsContent() {
               value={storeFormData.serial_suffix}
               onChange={(e) => setStoreFormData({ ...storeFormData, serial_suffix: e.target.value })}
             />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-neutral-700">
+              Store Logo
+            </label>
+
+            <div className="flex items-center gap-4">
+              {logoPreview ? (
+                <img
+                  src={logoPreview}
+                  alt="Logo Preview"
+                  className="w-16 h-16 object-contain border rounded"
+                />
+              ) : (
+                <div className="w-16 h-16 flex items-center justify-center border rounded text-xs text-neutral-400">
+                  No Logo
+                </div>
+              )}
+
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleLogoChange}
+                className="text-sm text-neutral-600"
+              />
+            </div>
+
+            <p className="text-xs text-neutral-500">
+              PNG / JPG recommended. Max 1MB.
+            </p>
           </div>
           <div className="flex justify-end gap-3 pt-4">
             <Button type="button" variant="outline" onClick={() => setIsStoreModalOpen(false)}>

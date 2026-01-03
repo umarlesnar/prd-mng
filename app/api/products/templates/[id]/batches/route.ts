@@ -3,7 +3,7 @@ import { connectDB } from '@/lib/db';
 import { ProductTemplate } from '@/models/ProductTemplate';
 import { Batch } from '@/models/Batch';
 import { ProductItem } from '@/models/ProductItem';
-import { generateSerialNumber } from '@/lib/serial-generator';
+import { generateBulkSerialNumbers } from '@/lib/serial-generator';
 import { logAudit } from '@/lib/audit-logger';
 
 async function getHandler(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -80,45 +80,31 @@ async function postHandler(req: NextRequest, { params }: { params: Promise<{ id:
       quantity,
     });
 
-    // Generate product items for this batch
-    const productItemsToCreate = [];
-    const serialNumbers = [];
+    // Generate serial numbers in bulk
+    const serialData = await generateBulkSerialNumbers(storeIdString, quantity);
+    const serialNumbers = serialData.map(data => data.serial_number);
 
-    for (let i = 0; i < quantity; i++) {
-      const serialData = await generateSerialNumber(storeIdString, template.product_model);
-      serialNumbers.push(serialData.serial_number);
-      
-      productItemsToCreate.push({
-        batch_id: batch._id,
-        product_template_id: id,
-        store_id: storeIdString,
-        user_id: userId,
-        ...serialData,
-      });
-    }
+    // Prepare bulk insert data
+    const productItemsToCreate = serialData.map(data => ({
+      batch_id: batch._id,
+      product_template_id: id,
+      store_id: storeIdString,
+      user_id: userId,
+      ...data,
+    }));
 
-    const productItems = await ProductItem.insertMany(productItemsToCreate);
+    // Bulk insert product items
+    const productItems = await ProductItem.insertMany(productItemsToCreate, { ordered: false });
 
-    // Log audit for batch and items
+    // Log audit for batch creation
     await logAudit({
       userId: userId,
       storeId: storeIdString,
       entity: 'batches',
       entityId: batch._id,
       action: 'create',
-      newValue: batch,
+      newValue: { ...batch.toObject(), items_count: quantity },
     });
-
-    for (const item of productItems) {
-      await logAudit({
-        userId: userId,
-        storeId: storeIdString,
-        entity: 'product_items',
-        entityId: item._id,
-        action: 'create',
-        newValue: item,
-      });
-    }
 
     return NextResponse.json({ 
       batch, 

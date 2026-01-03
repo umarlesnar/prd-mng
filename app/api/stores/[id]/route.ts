@@ -3,6 +3,7 @@ import { connectDB } from '@/lib/db';
 import { Store } from '@/models/Store';
 import { StoreUser } from '@/models/StoreUser';
 import { logAudit } from '@/lib/audit-logger';
+import { uploadBase64File } from '@/lib/file-uploader';
 
 async function getHandler(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -80,7 +81,23 @@ async function putHandler(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: 'Store not found' }, { status: 404 });
     }
 
-    const body = await req.json();
+    let body = await req.json();
+
+    // If store_logo is a base64 string, upload it and get the path
+    if (body.store_logo && body.store_logo.startsWith('data:image')) {
+      try {
+        const logoPath = await uploadBase64File(
+          body.store_logo, 
+          `store-logo-${id}.png`, 
+          'logos'
+        );
+        body.store_logo = logoPath;
+      } catch (uploadError: any) {
+        console.error('Failed to upload logo:', uploadError);
+        return NextResponse.json({ error: 'Failed to upload logo' }, { status: 400 });
+      }
+    }
+
     const store = await Store.findByIdAndUpdate(id, body, { new: true });
 
     await logAudit({
