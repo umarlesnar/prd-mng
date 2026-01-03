@@ -233,7 +233,7 @@ function SettingsContent() {
       }
 
       setIsStoreModalOpen(false);
-      refreshContext();
+      await refreshContext();
       showToast('Store settings updated successfully', 'success');
     } catch (error: any) {
       showToast(error.message, 'error');
@@ -420,7 +420,10 @@ function SettingsContent() {
 
       setIsEditStoreModalOpen(false);
       setEditingStore(null);
-      fetchStores();
+      await fetchStores();
+      if (editingStore._id === currentStore?._id) {
+        await refreshContext();
+      }
       showToast('Store updated successfully', 'success');
     } catch (error: any) {
       showToast(error.message, 'error');
@@ -548,6 +551,27 @@ function SettingsContent() {
                 <div>
                   <label className="text-sm font-medium text-neutral-700">Serial Suffix</label>
                   <p className="text-neutral-900 mt-1 font-mono">{currentStore.serial_suffix || '-'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-neutral-700">Store Logo</label>
+                  <div className="mt-1">
+                    {currentStore.store_logo ? (
+                      <img
+                        src={currentStore.store_logo}
+                        alt="Store Logo"
+                        className="w-20 h-20 object-contain border rounded"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                          (e.currentTarget.nextElementSibling as HTMLElement)!.style.display = 'flex';
+                        }}
+                      />
+                    ) : null}
+                    <div 
+                      className={`w-20 h-20 flex items-center justify-center border rounded text-xs text-neutral-400 ${currentStore.store_logo ? 'hidden' : 'flex'}`}
+                    >
+                      No Logo
+                    </div>
+                  </div>
                 </div>
               </div>
             ) : (
@@ -973,6 +997,36 @@ function SettingsContent() {
               value={storeFormData.serial_suffix}
               onChange={(e) => setStoreFormData({ ...storeFormData, serial_suffix: e.target.value })}
             />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-neutral-700">
+              Store Logo
+            </label>
+
+            <div className="flex items-center gap-4">
+              {logoPreview ? (
+                <img
+                  src={logoPreview}
+                  alt="Logo Preview"
+                  className="w-16 h-16 object-contain border rounded"
+                />
+              ) : (
+                <div className="w-16 h-16 flex items-center justify-center border rounded text-xs text-neutral-400">
+                  No Logo
+                </div>
+              )}
+
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleLogoChange}
+                className="text-sm text-neutral-600"
+              />
+            </div>
+
+            <p className="text-xs text-neutral-500">
+              PNG / JPG recommended. Max 1MB.
+            </p>
           </div>
           <div className="flex justify-end gap-3 pt-4">
             <Button type="button" variant="outline" onClick={() => setIsEditStoreModalOpen(false)}>

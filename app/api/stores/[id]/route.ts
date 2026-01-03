@@ -3,7 +3,7 @@ import { connectDB } from '@/lib/db';
 import { Store } from '@/models/Store';
 import { StoreUser } from '@/models/StoreUser';
 import { logAudit } from '@/lib/audit-logger';
-import { uploadBase64File } from '@/lib/file-uploader';
+import { uploadBase64File, deleteFile } from '@/lib/file-uploader';
 
 async function getHandler(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -86,6 +86,11 @@ async function putHandler(req: NextRequest, { params }: { params: Promise<{ id: 
     // If store_logo is a base64 string, upload it and get the path
     if (body.store_logo && body.store_logo.startsWith('data:image')) {
       try {
+        // Delete old logo if it exists
+        if (oldStore.store_logo) {
+          await deleteFile(oldStore.store_logo);
+        }
+        
         const logoPath = await uploadBase64File(
           body.store_logo, 
           `store-logo-${id}.png`, 
